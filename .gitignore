@@ -1,0 +1,15 @@
+# 빌드 산출물 (exe는 저장소에 커밋하지 않고 GitHub Release에 첨부파일로만 올림)
+*.exe
+build/
+dist/
+*.spec
+__pycache__/
+
+# 실행 중 생성되는 사용자 데이터 (배포용 코드가 아님)
+기록.json
+공지설정.json
+license.dat
+
+# 이 프로젝트와 무관한 개인 파일
+template.xlsx
+전자기학_1편_정전계.pptx

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm \"c:/Users/user/Desktop/workspace/add.py\")",
+      "Bash(node --check script.js)",
+      "Bash(command -v node)",
+      "Bash(command -v npx)",
+      "PowerShell(Start-Process \"c:\\\\Users\\\\user\\\\Desktop\\\\workspace\\\\index.html\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\user\\Desktop\\workspace"
+    ]
+  }
+}
