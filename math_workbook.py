@@ -38,22 +38,11 @@ OUTLINE_NEUTRAL = "#aeb9be"  # 치수로 표시되지 않는 나머지 변(그�
 
 FONT_NAME = "맑은 고딕"
 
-APP_VERSION = "v1.1"
+APP_VERSION = "v1.0"
 
 # 새 버전을 낼 때는 맨 위에 새 항목을 추가한다 (최신순으로 보여줌).
-VERSION_HISTORY = [
-    {
-        "version": "v1.1",
-        "date": "2026-08-03",
-        "notes": [
-            "시계 화면에서 5분 단위 바깥 눈금 숫자를 제거해 더 깔끔하게 정리",
-            "구구단표를 클릭하면 크게 볼 수 있는 화면 추가",
-            "다각형, 각기둥과 각뿔, 각도 문제에 도형 그림 추가",
-            "어림하기(올림·버림) 공식을 반올림과 구분해서 표시",
-            "원의 넓이·둘레 문제는 항상 파이(π) 단위로 통일, 공식도 π 기호로 표시",
-        ],
-    },
-]
+# v1.0은 최초 배포라 업데이트 내역을 따로 보여주지 않는다 (다음 버전부터 채워짐).
+VERSION_HISTORY = []
 
 # Digits the user has chosen to drill in 설정 (settings). Numbers containing
 # any of these digits are drawn roughly BOOST_FACTOR times more often.
