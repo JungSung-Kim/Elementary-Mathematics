@@ -37,10 +37,18 @@ OUTLINE_NEUTRAL = "#aeb9be"  # 치수로 표시되지 않는 나머지 변(그�
 
 FONT_NAME = "맑은 고딕"
 
-APP_VERSION = "v1.0"
+APP_VERSION = "v1.1"
 
 # 새 버전을 낼 때는 맨 위에 새 항목을 추가한다 (최신순으로 보여줌).
 VERSION_HISTORY = [
+    {
+        "version": "v1.1",
+        "date": "2026-08-03",
+        "notes": [
+            "시계 읽기 화면을 더 크고 보기 편하게 개선 (5분 단위 눈금 숫자 추가)",
+            "일부 문제 문구·계산 오류 수정",
+        ],
+    },
     {
         "version": "v1.0",
         "date": "2026-08-02",
