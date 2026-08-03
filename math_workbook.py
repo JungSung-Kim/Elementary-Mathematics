@@ -1157,11 +1157,16 @@ def save_notice_dismiss_date(date_str):
 # 자동 업데이트: GitHub Release에서 최신 버전을 확인하고, 있으면 새 exe를 받아
 # 지금 실행 중인 exe를 교체한다. 새 버전을 배포하려면 GitHub 저장소에
 # 태그를 "v1.1"처럼 붙여서 Release를 만들고, 빌드한 exe를 EXE_ASSET_NAME과
-# 정확히 같은 파일명으로 첨부하면 된다.
+# 정확히 같은 파일명으로 첨부하면 된다. EXE_ASSET_NAME은 일부러 영문으로
+# 뒀다 -- GitHub 웹 업로드(특히 드래그 앤 드롭)가 한글 파일명을 "default.exe"로
+# 깨뜨리는 경우가 있어서다. 로컬에 설치된 실제 파일명(초등수학문제집.exe)엔
+# 영향 없음 -- download_and_restart_with_update()가 항상 지금 실행 중인
+# exe의 경로(sys.executable)에 덮어쓰므로, 여긴 그저 Release에서 "어떤
+# 첨부파일을 받을지" 찾는 이름일 뿐이다.
 # ---------------------------------------------------------------------------
 GITHUB_REPO = "JungSung-Kim/Elementary-Mathematics"
 GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-EXE_ASSET_NAME = "초등수학문제집.exe"
+EXE_ASSET_NAME = "MathWorkbook.exe"
 
 
 def _parse_version(v):
