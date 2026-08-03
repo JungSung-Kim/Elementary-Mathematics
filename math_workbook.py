@@ -15,17 +15,18 @@ from math import gcd
 from datetime import datetime
 from collections import deque
 
-BG = "#eaf6ff"
+BG = "#eef2f7"
 CARD = "#ffffff"
-PRIMARY = "#3b82c4"
-PRIMARY_DARK = "#2c6595"
-ACCENT = "#ffb703"
-ACCENT_DARK = "#e29500"
+CARD_BORDER = "#e1e7ed"
+PRIMARY = "#2f5d8c"
+PRIMARY_DARK = "#1f4266"
+ACCENT = "#d9a441"
+ACCENT_DARK = "#b8862a"
 GREEN = "#2ecc71"
 GREEN_DARK = "#219150"
 RED = "#e74c3c"
 TEXT = "#26333a"
-MUTED = "#6b7c85"
+MUTED = "#68767f"
 DISABLED = "#c9d3d8"
 DISABLED_TEXT = "#8fa0a8"
 
@@ -37,33 +38,19 @@ OUTLINE_NEUTRAL = "#aeb9be"  # 치수로 표시되지 않는 나머지 변(그�
 
 FONT_NAME = "맑은 고딕"
 
-APP_VERSION = "v1.2"
+APP_VERSION = "v1.1"
 
 # 새 버전을 낼 때는 맨 위에 새 항목을 추가한다 (최신순으로 보여줌).
 VERSION_HISTORY = [
     {
-        "version": "v1.2",
-        "date": "2026-08-03",
-        "notes": [
-            "자동 업데이트 안정성 개선 (파일 교체 재시도 로직 추가)",
-        ],
-    },
-    {
         "version": "v1.1",
         "date": "2026-08-03",
         "notes": [
-            "시계 읽기 화면을 더 크고 보기 편하게 개선 (5분 단위 눈금 숫자 추가)",
-            "일부 문제 문구·계산 오류 수정",
-        ],
-    },
-    {
-        "version": "v1.0",
-        "date": "2026-08-02",
-        "notes": [
-            "사칙연산(덧셈·뺄셈·곱셈·나눗셈), 설정(숫자 연습), 시험, 오답노트, 기록 기능 출시",
-            "도형(둘레·넓이·부피) 공식과 문제풀이, 원의 파이(π) 단위 지원",
-            "분수·소수 사칙연산 추가",
-            "문장제, 약수와 배수(최대공약수·최소공배수), 측정(단위 변환·시계 읽기) 카테고리 추가",
+            "시계 화면에서 5분 단위 바깥 눈금 숫자를 제거해 더 깔끔하게 정리",
+            "구구단표를 클릭하면 크게 볼 수 있는 화면 추가",
+            "다각형, 각기둥과 각뿔, 각도 문제에 도형 그림 추가",
+            "어림하기(올림·버림) 공식을 반올림과 구분해서 표시",
+            "원의 넓이·둘레 문제는 항상 파이(π) 단위로 통일, 공식도 π 기호로 표시",
         ],
     },
 ]
@@ -698,37 +685,52 @@ PROPORTION_LEVELS = [
 def gen_number_sense(level):
     hi = 20 if level == 1 else 100
     n = _weighted_int(2, hi - 1)
-    variant = random.randint(0, 2)
+    variant = random.randint(0, 4)
     if variant == 0:
         return f"{n} 다음 수는 무엇일까요?", n + 1
     if variant == 1:
         return f"{n}보다 1 작은 수는 무엇일까요?", n - 1
+    if variant == 4 and n + 2 <= hi:
+        # n과 n+2 사이의 수 -- 항상 n+1 하나로 답이 고정되도록 간격을 2로 둔다.
+        return f"{n}{_num_josa(n, '과', '와')} {n + 2} 사이의 수는 무엇일까요?", n + 1
     m = _weighted_int(1, hi)
     while m == n:
         m = _weighted_int(1, hi)
+    if variant == 3:
+        smaller = min(n, m)
+        return f"{n}{_num_josa(n, '과', '와')} {m} 중에서 더 작은 수는 무엇일까요?", smaller
     bigger = max(n, m)
     return f"{n}{_num_josa(n, '과', '와')} {m} 중에서 더 큰 수는 무엇일까요?", bigger
 
 
 def gen_pattern(level):
-    if level == 1:
-        step = _weighted_int(1, 3)
-        start = _weighted_int(1, 15)
-        terms = [start + step * i for i in range(4)]
-        answer = start + step * 4
-        explain = f"규칙: 숫자가 {step}씩 커지는 규칙이에요. {terms[-1]} 다음은 {terms[-1]}+{step}={answer}예요."
-    elif level == 2:
-        step = _weighted_int(2, 9)
-        start = _weighted_int(1, 30)
-        terms = [start + step * i for i in range(4)]
-        answer = start + step * 4
-        explain = f"규칙: 숫자가 {step}씩 커지는 규칙이에요. {terms[-1]} 다음은 {terms[-1]}+{step}={answer}예요."
+    decreasing = random.random() < 0.4
+    if level in (1, 2):
+        step = _weighted_int(1, 3) if level == 1 else _weighted_int(2, 9)
+        if decreasing:
+            # 끝 항이 음수가 되지 않도록 충분히 큰 수에서 시작해 거꾸로 뺀다.
+            start = _weighted_int(40, 80) if level == 1 else _weighted_int(60, 200)
+            terms = [start - step * i for i in range(4)]
+            answer = start - step * 4
+            explain = f"규칙: 숫자가 {step}씩 작아지는 규칙이에요. {terms[-1]} 다음은 {terms[-1]}-{step}={answer}예요."
+        else:
+            start = _weighted_int(1, 15) if level == 1 else _weighted_int(1, 30)
+            terms = [start + step * i for i in range(4)]
+            answer = start + step * 4
+            explain = f"규칙: 숫자가 {step}씩 커지는 규칙이에요. {terms[-1]} 다음은 {terms[-1]}+{step}={answer}예요."
     else:
         ratio = random.choice([2, 3])
-        start = _weighted_int(1, 5)
-        terms = [start * (ratio ** i) for i in range(4)]
-        answer = start * (ratio ** 4)
-        explain = f"규칙: 숫자가 {ratio}배씩 커지는 규칙이에요. {terms[-1]} 다음은 {terms[-1]}×{ratio}={answer}예요."
+        if decreasing:
+            base = _weighted_int(1, 5)
+            start = base * (ratio ** 4)
+            terms = [start // (ratio ** i) for i in range(4)]
+            answer = base
+            explain = f"규칙: 숫자가 {ratio}씩 나뉘는(÷{ratio}) 규칙이에요. {terms[-1]} 다음은 {terms[-1]}÷{ratio}={answer}예요."
+        else:
+            start = _weighted_int(1, 5)
+            terms = [start * (ratio ** i) for i in range(4)]
+            answer = start * (ratio ** 4)
+            explain = f"규칙: 숫자가 {ratio}배씩 커지는 규칙이에요. {terms[-1]} 다음은 {terms[-1]}×{ratio}={answer}예요."
     seq_text = ", ".join(str(t) for t in terms)
     return f"규칙에 맞게 다음에 올 수를 구하세요: {seq_text}, ?", answer, {"explain": explain}
 
@@ -822,7 +824,8 @@ def gen_angle_calc(level):
         a = _weighted_int(20, 90)
         b = _weighted_int(20, 180 - a - 10)
         c = 180 - a - b
-        return f"삼각형의 세 각 중 두 각이 {a}도, {b}도입니다. 나머지 한 각은 몇 도일까요?", c
+        return (f"삼각형의 세 각 중 두 각이 {a}도, {b}도입니다. 나머지 한 각은 몇 도일까요?", c,
+                {"draw": ("polygon_angles", (3, [a, b, "?"]))})
     a = _weighted_int(50, 150)
     b = _weighted_int(50, 150)
     c = _weighted_int(20, max(21, 360 - a - b - 10))
@@ -832,13 +835,18 @@ def gen_angle_calc(level):
         b = _weighted_int(50, 150)
         c = _weighted_int(20, max(21, 360 - a - b - 10))
         d = 360 - a - b - c
-    return f"사각형의 네 각 중 세 각이 {a}도, {b}도, {c}도입니다. 나머지 한 각은 몇 도일까요?", d
+    return (f"사각형의 네 각 중 세 각이 {a}도, {b}도, {c}도입니다. 나머지 한 각은 몇 도일까요?", d,
+            {"draw": ("polygon_angles", (4, [a, b, c, "?"]))})
 
 
 def gen_average(level):
     count = 3 if level == 1 else 4
     avg = _weighted_int(3, 30)
     total = avg * count
+    if random.random() < 0.3:
+        # 역산: 평균과 개수를 주고 합을 구하게 하는 유형 -- 평균의 의미(합 = 평균×개수)를
+        # 직접 확인하게 해서 "평균 구하기"만 반복하는 것보다 이해를 더 넓혀준다.
+        return f"어떤 수 {count}개의 평균이 {avg}일 때, 이 수들을 모두 더하면 얼마일까요?", total
     nums = []
     remaining_total = total
     remaining_count = count
@@ -860,14 +868,20 @@ def gen_average(level):
 def gen_divisor_count(level):
     lo, hi = (6, 50) if level == 1 else (20, 100)
     n = _weighted_int(lo, hi)
-    count = sum(1 for d in range(1, n + 1) if n % d == 0)
-    return f"{n}의 약수는 모두 몇 개일까요?", count
+    divisors = [d for d in range(1, n + 1) if n % d == 0]
+    if random.random() < 0.5:
+        return f"{n}의 약수는 모두 몇 개일까요?", len(divisors)
+    return f"{n}의 약수를 모두 더하면 얼마일까요?", sum(divisors)
 
 
 def gen_multiple_find(level):
     lo, hi, k_lo, k_hi = (2, 12, 2, 9) if level == 1 else (13, 30, 2, 12)
-    n, k = _weighted_int(lo, hi), _weighted_int(k_lo, k_hi)
-    return f"{n}의 {k}번째 배수는 얼마일까요?", n * k
+    n = _weighted_int(lo, hi)
+    if random.random() < 0.5:
+        k = _weighted_int(k_lo, k_hi)
+        return f"{n}의 {k}번째 배수는 얼마일까요?", n * k
+    bound = _weighted_int(n * 3, n * 10)
+    return f"{bound} 이하의 자연수 중에서 {n}의 배수는 모두 몇 개일까요?", bound // n
 
 
 def gen_ratio(level):
@@ -903,6 +917,125 @@ def gen_proportion(level):
         return f"{a}:{b} = {c}:x 일 때, x는 얼마일까요?", x
     x, d = a * k, b * k
     return f"{a}:{b} = x:{d} 일 때, x는 얼마일까요?", x
+
+
+# ---------------------------------------------------------------------------
+# 네 자리 수 (초2) -- gen_place_value(세 자리 수)와 완전히 같은 구조를 자릿수만
+# 하나 늘려 그대로 재현한다 (검증된 "가장 큰/작은 수 만들기" 로직 재사용).
+# ---------------------------------------------------------------------------
+FOUR_DIGIT_LEVELS = [
+    {"level": 1, "title": "Lv.1", "desc": "자릿값 구하기", "example": "예) 4,352에서 5가 나타내는 값"},
+    {"level": 2, "title": "Lv.2", "desc": "가장 큰/작은 수 만들기", "example": "예) 4,3,5,2로 만들 수 있는 가장 큰 수"},
+]
+
+
+def gen_four_digit(level):
+    if level == 1:
+        th, h, t, o = _weighted_int(1, 9), _weighted_int(0, 9), _weighted_int(0, 9), _weighted_int(0, 9)
+        n = th * 1000 + h * 100 + t * 10 + o
+        digit, place, mult = random.choice(
+            [(th, "천의", 1000), (h, "백의", 100), (t, "십의", 10), (o, "일의", 1)]
+        )
+        value = digit * mult
+        return f"{n}에서 {place} 자리 숫자가 나타내는 값은 얼마일까요?", value
+    d1, d2, d3, d4 = random.sample(range(0, 10), 4)  # distinct digits -> at most one is 0
+    digits = [d1, d2, d3, d4]
+    nonzero_desc = sorted([d for d in digits if d != 0], reverse=True)
+    josa = _num_josa_ro(d4)
+    if random.random() < 0.5:
+        leading = nonzero_desc[0]
+        rest = sorted(digits, reverse=True)
+        rest.remove(leading)
+        answer_digits = [leading] + rest
+        text = f"숫자 카드 {d1}, {d2}, {d3}, {d4}{josa} 만들 수 있는 가장 큰 네 자리 수는 얼마일까요?"
+    else:
+        leading = nonzero_desc[-1]
+        rest = sorted(digits)
+        rest.remove(leading)
+        answer_digits = [leading] + rest
+        text = f"숫자 카드 {d1}, {d2}, {d3}, {d4}{josa} 만들 수 있는 가장 작은 네 자리 수는 얼마일까요?"
+    answer = int("".join(str(d) for d in answer_digits))
+    return text, answer
+
+
+# ---------------------------------------------------------------------------
+# 다각형 (초4) -- 변/꼭짓점/각의 개수(Lv.1), 대각선의 개수(Lv.2, n×(n-3)÷2).
+# ---------------------------------------------------------------------------
+POLYGON_PROP_LEVELS = [
+    {"level": 1, "title": "Lv.1", "desc": "변·꼭짓점·각의 개수", "example": "예) 육각형의 변은 몇 개?"},
+    {"level": 2, "title": "Lv.2", "desc": "대각선의 개수", "example": "예) 오각형의 대각선은 몇 개?"},
+]
+POLYGON_NAMES = {3: "삼각형", 4: "사각형", 5: "오각형", 6: "육각형",
+                  7: "칠각형", 8: "팔각형", 9: "구각형", 10: "십각형"}
+
+
+def gen_polygon_prop(level):
+    if level == 1:
+        n = random.randint(3, 8)
+        name = POLYGON_NAMES[n]
+        kind = random.choice(["변", "꼭짓점", "각"])
+        return (f"{name}{_josa(name, '은', '는')} {kind}{_josa(kind, '이', '가')} 몇 개일까요?", n,
+                {"draw": ("polygon_shape", n)})
+    n = random.randint(4, 10)
+    name = POLYGON_NAMES[n]
+    diagonals = n * (n - 3) // 2
+    return f"{name}의 대각선은 모두 몇 개일까요?", diagonals, {"draw": ("polygon_shape", n)}
+
+
+# ---------------------------------------------------------------------------
+# 어림하기 (초5) -- 반올림(Lv.1), 올림/버림(Lv.2). 5 이상은 항상 올리는 초등
+# 교육과정 규칙을 그대로 쓴다 (파이썬 기본 round()의 은행가 반올림은 25→20처럼
+# 틀린 답을 낼 수 있어 쓰지 않는다).
+# ---------------------------------------------------------------------------
+ROUND_LEVELS = [
+    {"level": 1, "title": "Lv.1", "desc": "반올림", "example": "예) 47을 십의 자리에서 반올림하면?"},
+    {"level": 2, "title": "Lv.2", "desc": "올림 · 버림", "example": "예) 347을 백의 자리에서 올림하면?"},
+]
+ROUND_PLACES_1 = [("십의", 10), ("백의", 100)]
+ROUND_PLACES_2 = [("십의", 10), ("백의", 100), ("천의", 1000)]
+
+
+def gen_round(level):
+    if level == 1:
+        place_name, unit = random.choice(ROUND_PLACES_1)
+        n = _weighted_int(unit, unit * 30 - 1)
+        josa = _num_josa(n, "을", "를")
+        answer = ((n + unit // 2) // unit) * unit
+        return f"{n}{josa} {place_name} 자리에서 반올림하면 얼마일까요?", answer
+    place_name, unit = random.choice(ROUND_PLACES_2)
+    n = _weighted_int(unit, unit * 30 - 1)
+    josa = _num_josa(n, "을", "를")
+    if random.random() < 0.5:
+        answer = -(-n // unit) * unit
+        return f"{n}{josa} {place_name} 자리에서 올림하면 얼마일까요?", answer
+    answer = (n // unit) * unit
+    return f"{n}{josa} {place_name} 자리에서 버림하면 얼마일까요?", answer
+
+
+# ---------------------------------------------------------------------------
+# 각기둥과 각뿔 (초6) -- 면·꼭짓점·모서리 개수. n각기둥: 면 n+2, 꼭짓점 2n,
+# 모서리 3n / n각뿔: 면 n+1, 꼭짓점 n+1, 모서리 2n.
+# ---------------------------------------------------------------------------
+SOLID_PROP_LEVELS = [
+    {"level": 1, "title": "Lv.1", "desc": "각기둥의 면·꼭짓점·모서리", "example": "예) 삼각기둥의 모서리는 몇 개?"},
+    {"level": 2, "title": "Lv.2", "desc": "각뿔의 면·꼭짓점·모서리", "example": "예) 사각뿔의 꼭짓점은 몇 개?"},
+]
+PRISM_NAMES = {3: "삼각기둥", 4: "사각기둥", 5: "오각기둥", 6: "육각기둥", 7: "칠각기둥", 8: "팔각기둥"}
+PYRAMID_NAMES = {3: "삼각뿔", 4: "사각뿔", 5: "오각뿔", 6: "육각뿔", 7: "칠각뿔", 8: "팔각뿔"}
+
+
+def gen_solid_prop(level):
+    n = random.randint(3, 8)
+    kind = random.choice(["면", "꼭짓점", "모서리"])
+    is_pyramid = level == 2
+    if not is_pyramid:
+        name = PRISM_NAMES[n]
+        value = {"면": n + 2, "꼭짓점": n * 2, "모서리": n * 3}[kind]
+    else:
+        name = PYRAMID_NAMES[n]
+        value = {"면": n + 1, "꼭짓점": n + 1, "모서리": n * 2}[kind]
+    return (f"{name}{_josa(name, '은', '는')} {kind}{_josa(kind, '이', '가')} 몇 개일까요?", value,
+            {"draw": ("solid_shape", (n, is_pyramid))})
 
 
 # ---------------------------------------------------------------------------
@@ -974,6 +1107,8 @@ GRADE_UNIT_LABELS = {
     "angle_basic": "각", "angle_calc": "각도", "average": "평균",
     "divisor_count": "약수", "multiple_find": "배수", "ratio": "비와 비율",
     "proportion": "비례식", "shape_name": "모양", "graph_read": "그래프",
+    "four_digit": "네 자리 수", "polygon_prop": "다각형", "round_num": "어림하기",
+    "solid_prop": "각기둥과 각뿔",
 }
 GRADE_UNIT_GEN = {
     "number_sense": gen_number_sense, "pattern": gen_pattern, "times_table": gen_times_table,
@@ -981,6 +1116,8 @@ GRADE_UNIT_GEN = {
     "angle_basic": gen_angle_basic, "angle_calc": gen_angle_calc, "average": gen_average,
     "divisor_count": gen_divisor_count, "multiple_find": gen_multiple_find, "ratio": gen_ratio,
     "proportion": gen_proportion, "shape_name": gen_shape_name, "graph_read": gen_graph_read,
+    "four_digit": gen_four_digit, "polygon_prop": gen_polygon_prop, "round_num": gen_round,
+    "solid_prop": gen_solid_prop,
 }
 GRADE_UNIT_LEVELS_MAP = {
     "number_sense": NUMBER_SENSE_LEVELS, "pattern": PATTERN_LEVELS, "times_table": TIMES_TABLE_LEVELS,
@@ -989,6 +1126,8 @@ GRADE_UNIT_LEVELS_MAP = {
     "angle_calc": ANGLE_CALC_LEVELS, "average": AVERAGE_LEVELS, "divisor_count": DIVISOR_COUNT_LEVELS,
     "multiple_find": MULTIPLE_FIND_LEVELS, "ratio": RATIO_LEVELS, "proportion": PROPORTION_LEVELS,
     "shape_name": SHAPE_NAME_LEVELS, "graph_read": GRAPH_READ_LEVELS,
+    "four_digit": FOUR_DIGIT_LEVELS, "polygon_prop": POLYGON_PROP_LEVELS, "round_num": ROUND_LEVELS,
+    "solid_prop": SOLID_PROP_LEVELS,
 }
 # ratio는 Lv1이 소수(0.4배 등), Lv2가 정수(퍼센트)를 돌려주는데, "text_decimal" 모드는
 # 정수 답도 그대로 받아들이므로(0.005 오차 허용 비교) 이 op 하나만 text_decimal로 통일한다.
@@ -998,7 +1137,7 @@ GRADE_UNIT_DECIMAL_OPS = {"ratio"}
 GRADE_UNIT_CHOICE_OPS = {"shape_name"}
 # 이 연산들은 gen 함수가 3번째 원소로 {"draw": (kind, data)}를 돌려주고,
 # PracticePage가 그 op일 때만 캔버스를 만들어 문제마다 그림을 그려준다.
-DIAGRAM_OPS = {"circle_relation", "angle_basic", "graph_read"}
+DIAGRAM_OPS = {"circle_relation", "angle_basic", "graph_read", "angle_calc", "polygon_prop", "solid_prop"}
 
 # 공식이 실제로 있는 학년별 신규 단원만 문제 화면에 공식을 함께 보여준다
 # (구구단·세 자리 수·시간·수·규칙·약수·배수처럼 "공식"이랄 게 없는 단원은 제외).
@@ -1009,7 +1148,24 @@ FORMULA_TEXT = {
     "average": "평균 = (모든 수의 합) ÷ (수의 개수)",
     "ratio": "비율 = 비교하는 양 ÷ 기준량",
     "proportion": "가:나 = 다:라 이면, 가×라 = 나×다",
+    "polygon_prop": "대각선의 개수 = n × (n－3) ÷ 2 (n은 변의 개수)",
+    "round_num": "반올림: 5 이상이면 올리고 4 이하면 버려요   /   올림: 무조건 올려요   /   버림: 무조건 버려요",
+    "solid_prop": "각기둥: 면 n+2 · 꼭짓점 2n · 모서리 3n   /   각뿔: 면 n+1 · 꼭짓점 n+1 · 모서리 2n",
 }
+
+# round_num(어림하기)은 레벨마다 다른 공식이 적용되므로(Lv.1 반올림, Lv.2 올림·버림),
+# 레벨을 이미 알고 있는 PracticePage에서는 FORMULA_TEXT 대신 이걸로 그 레벨에
+# 실제로 해당하는 공식만 보여준다 (LevelSelectPage는 레벨 선택 전이라 위 통합 문구를 그대로 씀).
+ROUND_FORMULA_BY_LEVEL = {
+    1: "반올림: 구하는 자리 아래 수가 5 이상이면 올리고, 4 이하면 버려요",
+    2: "올림: 구하는 자리 아래 수를 모두 올려요   /   버림: 구하는 자리 아래 수를 모두 버려요",
+}
+
+
+def _formula_text_for(op, level=None):
+    if op == "round_num" and level in ROUND_FORMULA_BY_LEVEL:
+        return ROUND_FORMULA_BY_LEVEL[level]
+    return FORMULA_TEXT.get(op)
 
 # LevelSelectPage 하단 안내 문구. 기본값("레벨이 올라갈수록 자릿수가 늘어나요")이
 # 맞지 않는 단원만 여기서 따로 지정한다.
@@ -1018,6 +1174,8 @@ LEVEL_CAPTION_OVERRIDES = {
     "times_table": "레벨이 올라갈수록 큰 단을 연습해요",
     "shape_name": "여러 가지 도형의 이름을 맞혀보세요",
     "clock_read": "레벨이 올라갈수록 시각을 더 세밀하게 읽어요",
+    "polygon_prop": "레벨이 올라갈수록 더 복잡한 성질을 물어봐요",
+    "solid_prop": "Lv.1은 각기둥, Lv.2는 각뿔을 연습해요",
 }
 
 
@@ -1247,6 +1405,11 @@ def download_and_restart_with_update(download_url):
         "timeout /t 1 /nobreak >nul\r\n"
         "goto retry\r\n"
         ":done\r\n"
+        # 복사 직후 곧바로 실행하면, 방금 막 내려받은(인터넷 유래) 새 파일을
+        # 백신이 실시간 검사하는 타이밍과 겹쳐 "Failed to load Python DLL"
+        # 오류가 드물게 나는 걸 확인했다 (같은 파일을 잠시 후 다시 실행하면
+        # 정상 동작 -- 파일 자체는 멀쩡함). 짧게 한 번 더 쉬어서 그 확률을 줄인다.
+        "timeout /t 1 /nobreak >nul\r\n"
         f'start "" "{exe_path}"\r\n'
         'del "%~f0"\r\n'
     )
@@ -1273,10 +1436,10 @@ SHAPE_ICONS = {
 }
 
 
-def _add_shape(key, shape_label, quantity_label, unit, formula_text, gen_fn, decimal=False):
+def _add_shape(key, shape_label, quantity_label, unit, formula_text, gen_fn):
     SHAPE_DEFS.append({
         "key": key, "shape_label": shape_label, "quantity_label": quantity_label,
-        "unit": unit, "formula_text": formula_text, "gen": gen_fn, "decimal": decimal,
+        "unit": unit, "formula_text": formula_text, "gen": gen_fn,
     })
 
 
@@ -1363,8 +1526,8 @@ _add_shape("triangle_area", "삼각형", "넓이", "cm²", "넓이 = 밑변 × �
 _add_shape("rhombus_perimeter", "마름모", "둘레", "cm", "둘레 = 한 변 × 4", _gen_rhombus_perimeter)
 _add_shape("rhombus_area", "마름모", "넓이", "cm²", "넓이 = 한 대각선 × 다른 대각선 ÷ 2", _gen_rhombus_area)
 _add_shape("trapezoid_area", "사다리꼴", "넓이", "cm²", "넓이 = (윗변 + 아랫변) × 높이 ÷ 2", _gen_trapezoid_area)
-_add_shape("circle_circumference", "원", "둘레(원주)", "cm", "원주 = 지름 × 3.14", _gen_circle_circumference, decimal=True)
-_add_shape("circle_area", "원", "넓이", "cm²", "넓이 = 반지름 × 반지름 × 3.14", _gen_circle_area, decimal=True)
+_add_shape("circle_circumference", "원", "둘레(원주)", "cm", "원주 = 지름 × π", _gen_circle_circumference)
+_add_shape("circle_area", "원", "넓이", "cm²", "넓이 = 반지름 × 반지름 × π", _gen_circle_area)
 _add_shape("cuboid_volume", "직육면체", "부피", "cm³", "부피 = 가로 × 세로 × 높이", _gen_cuboid_volume)
 _add_shape("cube_volume", "정육면체", "부피", "cm³", "부피 = 한 모서리 × 한 모서리 × 한 모서리", _gen_cube_volume)
 
@@ -1373,14 +1536,46 @@ for _sd in SHAPE_DEFS:
     SHAPES_BY_LABEL.setdefault(_sd["shape_label"], []).append(_sd)
 SHAPE_DEFS_BY_KEY = {sd["key"]: sd for sd in SHAPE_DEFS}
 
+
+def _circle_pi_coefficient(key, dims):
+    """원 문제는 항상 답을 π의 배수로 받는다 (예: 지름 6cm -> '6π') -- 3.14를
+    직접 곱한 소수 답이나 π 기호 타자를 요구하지 않고, 계수만 입력하면 된다.
+    지름=원주의 계수, 반지름²=넓이의 계수."""
+    if key == "circle_circumference":
+        return dims["지름"]
+    return dims["반지름"] ** 2
+
 TEST_QUESTION_COUNTS = [10, 20, 30, 50]
 TEST_TIME_LIMITS = [3, 5, 10, 15]  # minutes
 COUNT_MIN, COUNT_MAX = 1, 100
 MINUTES_MIN, MINUTES_MAX = 1, 60
 
 
+def _shade_color(hex_color, factor):
+    """Darkens (factor<1) or lightens (factor>1) a "#rrggbb" color. Returns
+    None (caller should just skip shading) if hex_color isn't a plain hex
+    string -- e.g. a Tk color name like "white" -- rather than raising."""
+    try:
+        hex_color = hex_color.lstrip("#")
+        if len(hex_color) != 6:
+            return None
+        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+        r, g, b = (max(0, min(255, int(c * factor))) for c in (r, g, b))
+        return f"#{r:02x}{g:02x}{b:02x}"
+    except (ValueError, AttributeError):
+        return None
+
+
 class RoundButton(tk.Button):
-    """A simple flat, colorful button styled for a kids' app."""
+    """A simple flat, colorful button styled for a kids' app. Darkens
+    slightly on mouse-hover for a more tactile/premium feel.
+
+    Hover state is tracked separately from the button's "true" color
+    (`_true_bg`) so that grading feedback (e.g. a choice button recoloring
+    to GREEN/RED) is never clobbered by a stale hover-restore: config()/
+    configure() is overridden so ANY bg change -- from hover or from normal
+    app code -- always updates `_true_bg`, and <Leave> always restores
+    exactly that live value instead of a color captured back at <Enter>."""
 
     def __init__(self, master, text, command, bg=PRIMARY, fg="white",
                  active_bg=None, size=18, bold=True, width=None, pady=14, **kw):
@@ -1392,6 +1587,35 @@ class RoundButton(tk.Button):
             relief="flat", bd=0, cursor="hand2", width=width, pady=pady,
             **kw,
         )
+        self._true_bg = bg
+        self._hovering = False
+        self.bind("<Enter>", self._on_enter, add="+")
+        self.bind("<Leave>", self._on_leave, add="+")
+
+    def config(self, **kw):
+        if "bg" in kw:
+            self._true_bg = kw["bg"]
+            effective_state = kw.get("state", self["state"])
+            if getattr(self, "_hovering", False) and effective_state != "disabled":
+                kw = dict(kw)
+                shaded = _shade_color(kw["bg"], 0.88)
+                if shaded:
+                    kw["bg"] = shaded
+        return super().config(**kw)
+
+    configure = config
+
+    def _on_enter(self, _event):
+        if self["state"] == "disabled":
+            return
+        self._hovering = True
+        shaded = _shade_color(self._true_bg, 0.88)
+        if shaded:
+            super().config(bg=shaded)
+
+    def _on_leave(self, _event):
+        self._hovering = False
+        super().config(bg=self._true_bg)
 
 
 class App(tk.Tk):
@@ -1438,6 +1662,8 @@ class App(tk.Tk):
         self.nav_return = None
 
     def maybe_show_version_notice(self):
+        if not VERSION_HISTORY:
+            return
         today = datetime.now().strftime("%Y-%m-%d")
         if load_notice_dismiss_date() == today:
             return
@@ -1735,17 +1961,27 @@ class UpdateAvailableDialog(tk.Toplevel):
         self.later_btn.config(state="normal")
 
 
+def _draw_badge(parent, text, badge_color, size=54, font_size=20):
+    """A small filled-circle 'badge' (grade number / icon) drawn on a Canvas
+    -- reads as a more deliberate app-tile icon than a plain bold Label."""
+    cv = tk.Canvas(parent, width=size, height=size, bg=CARD, highlightthickness=0)
+    cv.create_oval(2, 2, size - 2, size - 2, fill=badge_color, outline="")
+    cv.create_text(size // 2, size // 2 + 1, text=text, fill="white",
+                     font=(FONT_NAME, font_size, "bold"))
+    return cv
+
+
 class MainMenuPage(tk.Frame):
     GRADE_ROW1 = [
-        {"symbol": "1", "label": "초등 1학년", "desc": "수 · 덧셈 · 뺄셈 · 시계 · 규칙 · 모양", "grade": 1},
-        {"symbol": "2", "label": "초등 2학년", "desc": "구구단 · 세 자리 수 · 시간 · 길이", "grade": 2},
-        {"symbol": "3", "label": "초등 3학년", "desc": "나눗셈 · 분수 · 소수 · 원 · 각 · 그래프", "grade": 3},
-        {"symbol": "4", "label": "초등 4학년", "desc": "각도 · 삼각형 · 사각형 · 평균 · 규칙", "grade": 4},
+        {"symbol": "1", "label": "초등 1학년", "grade": 1},
+        {"symbol": "2", "label": "초등 2학년", "grade": 2},
+        {"symbol": "3", "label": "초등 3학년", "grade": 3},
+        {"symbol": "4", "label": "초등 4학년", "grade": 4},
     ]
     GRADE_ROW2 = [
-        {"symbol": "5", "label": "초등 5학년", "desc": "약수 · 배수 · 분수 · 소수 · 비와 비율 · 도형", "grade": 5},
-        {"symbol": "6", "label": "초등 6학년", "desc": "분수·소수 나눗셈 · 비례식 · 원의 넓이 등", "grade": 6},
-        {"symbol": "📊", "label": "기록", "desc": "지금까지 본 시험 기록 보기", "cmd": "show_history"},
+        {"symbol": "5", "label": "초등 5학년", "grade": 5},
+        {"symbol": "6", "label": "초등 6학년", "grade": 6},
+        {"symbol": "📊", "label": "기록", "cmd": "show_history", "badge_color": ACCENT_DARK},
     ]
 
     def __init__(self, master, app):
@@ -1754,33 +1990,30 @@ class MainMenuPage(tk.Frame):
         self.app = app
 
         tk.Label(self, text="초등 수학 문제집", bg=BG, fg=TEXT,
-                  font=(FONT_NAME, 28, "bold")).pack(pady=(30, 4))
+                  font=(FONT_NAME, 30, "bold")).pack(pady=(38, 4))
         tk.Label(self, text="학년을 골라보세요", bg=BG, fg=MUTED,
-                  font=(FONT_NAME, 13)).pack(pady=(0, 18))
+                  font=(FONT_NAME, 13)).pack(pady=(0, 26))
 
-        for row_i, cards in enumerate([self.GRADE_ROW1, self.GRADE_ROW2]):
+        for cards in (self.GRADE_ROW1, self.GRADE_ROW2):
             row = tk.Frame(self, bg=BG)
-            row.pack(pady=8)
+            row.pack(pady=10)
             for i, cat in enumerate(cards):
-                card = tk.Frame(row, bg=CARD, width=178, height=175,
-                                  highlightbackground="#dbe7ee", highlightthickness=1)
-                card.grid(row=0, column=i, padx=8)
+                card = tk.Frame(row, bg=CARD, width=182, height=186,
+                                  highlightbackground=CARD_BORDER, highlightthickness=1)
+                card.grid(row=0, column=i, padx=9)
                 card.pack_propagate(False)
 
-                tk.Label(card, text=cat["symbol"], bg=CARD, fg=PRIMARY,
-                          font=(FONT_NAME, 19, "bold")).pack(pady=(18, 2))
+                _draw_badge(card, cat["symbol"], cat.get("badge_color", PRIMARY)).pack(pady=(26, 10))
                 tk.Label(card, text=cat["label"], bg=CARD, fg=TEXT, font=(FONT_NAME, 15, "bold")).pack()
-                tk.Label(card, text=cat["desc"], bg=CARD, fg=MUTED, font=(FONT_NAME, 9),
-                          wraplength=150, justify="center").pack(pady=(4, 0))
                 if "grade" in cat:
                     cmd = lambda g=cat["grade"]: self.app.show_grade_select(g)
                 else:
                     cmd = getattr(self.app, cat["cmd"])
                 RoundButton(card, "시작하기", cmd, bg=PRIMARY, size=11,
-                             width=9, pady=6).pack(pady=(12, 0))
+                             width=9, pady=7).pack(pady=(16, 0))
 
         link_row = tk.Frame(self, bg=BG)
-        link_row.pack(pady=(14, 0))
+        link_row.pack(pady=(20, 0))
         RoundButton(link_row, f"{APP_VERSION} · 버전 이력 보기", self.app.show_version_history,
                      bg=BG, fg=MUTED, size=10, bold=False, pady=2).pack(side="left", padx=8)
         RoundButton(link_row, "연산별로 보기", self.app.show_category_index,
@@ -1823,7 +2056,7 @@ class CategoryIndexPage(tk.Frame):
             row.pack(pady=8)
             for i, cat in enumerate(cats):
                 card = tk.Frame(row, bg=CARD, width=178, height=175,
-                                  highlightbackground="#dbe7ee", highlightthickness=1)
+                                  highlightbackground=CARD_BORDER, highlightthickness=1)
                 card.grid(row=0, column=i, padx=8)
                 card.pack_propagate(False)
                 tk.Label(card, text=cat["symbol"], bg=CARD, fg=PRIMARY,
@@ -1843,12 +2076,16 @@ GRADE_CURRICULUM = {
         {"label": "시계", "kind": "op", "op": "clock_read"},
         {"label": "규칙", "kind": "op", "op": "pattern"},
         {"label": "모양", "kind": "op", "op": "shape_name"},
+        {"label": "문장제", "kind": "op_group", "ops": ["word_add", "word_sub"]},
     ],
     2: [
         {"label": "구구단", "kind": "op", "op": "times_table"},
         {"label": "세 자리 수", "kind": "op", "op": "place_value"},
         {"label": "시간", "kind": "op", "op": "elapsed_time"},
         {"label": "길이", "kind": "op", "op": "unit_length"},
+        {"label": "덧셈과 뺄셈", "kind": "op_group", "ops": ["add", "sub"]},
+        {"label": "네 자리 수", "kind": "op", "op": "four_digit"},
+        {"label": "그래프", "kind": "op", "op": "graph_read"},
     ],
     3: [
         {"label": "나눗셈", "kind": "op", "op": "div"},
@@ -1857,6 +2094,7 @@ GRADE_CURRICULUM = {
         {"label": "원", "kind": "op", "op": "circle_relation"},
         {"label": "각", "kind": "op", "op": "angle_basic"},
         {"label": "그래프", "kind": "op", "op": "graph_read"},
+        {"label": "들이와 무게", "kind": "op_group", "ops": ["unit_weight", "unit_volume"]},
     ],
     4: [
         {"label": "각도", "kind": "op", "op": "angle_calc"},
@@ -1865,6 +2103,7 @@ GRADE_CURRICULUM = {
          "keys": ["square_area", "rect_area", "parallelogram_area", "rhombus_area", "trapezoid_area"]},
         {"label": "평균", "kind": "op", "op": "average"},
         {"label": "규칙", "kind": "op", "op": "pattern"},
+        {"label": "다각형", "kind": "op", "op": "polygon_prop"},
     ],
     5: [
         {"label": "약수", "kind": "op", "op": "divisor_count"},
@@ -1873,6 +2112,7 @@ GRADE_CURRICULUM = {
         {"label": "소수", "kind": "op_group", "ops": ["dec_add", "dec_sub", "dec_mul", "dec_div"]},
         {"label": "비와 비율", "kind": "op", "op": "ratio"},
         {"label": "도형", "kind": "shape_browse"},
+        {"label": "어림하기", "kind": "op", "op": "round_num"},
     ],
     6: [
         {"label": "분수 나눗셈", "kind": "op", "op": "frac_div"},
@@ -1881,6 +2121,7 @@ GRADE_CURRICULUM = {
         {"label": "원의 넓이", "kind": "shape", "key": "circle_area"},
         {"label": "공간도형", "kind": "shape_group", "keys": ["cuboid_volume", "cube_volume"]},
         {"label": "그래프", "kind": "op", "op": "graph_read"},
+        {"label": "각기둥과 각뿔", "kind": "op", "op": "solid_prop"},
     ],
 }
 
@@ -1907,7 +2148,7 @@ class GradeSelectPage(tk.Frame):
         units = GRADE_CURRICULUM[grade]
         for i, unit in enumerate(units):
             card = tk.Frame(grid, bg=CARD, width=178, height=150,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=i // 4, column=i % 4, padx=8, pady=8)
             card.pack_propagate(False)
             tk.Label(card, text=unit["label"], bg=CARD, fg=TEXT,
@@ -1980,7 +2221,7 @@ class GradeGroupPage(tk.Frame):
             card_label = OP_LABELS[item] if kind == "op" else SHAPE_DEFS_BY_KEY[item]["quantity_label"]
             sub_label = "" if kind == "op" else SHAPE_DEFS_BY_KEY[item]["shape_label"]
             card = tk.Frame(row, bg=CARD, width=170, height=160,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=i // 4, column=i % 4, padx=8, pady=8)
             card.pack_propagate(False)
             if sub_label:
@@ -2042,7 +2283,7 @@ class OpSelectPage(tk.Frame):
 
     def make_card(self, master, symbol, label, command, subtitle=None, color=PRIMARY):
         card = tk.Frame(master, bg=CARD, width=170, height=200,
-                          highlightbackground="#dbe7ee", highlightthickness=1)
+                          highlightbackground=CARD_BORDER, highlightthickness=1)
         card.pack_propagate(False)
         tk.Label(card, text=symbol, bg=CARD, fg=color, font=(FONT_NAME, 32, "bold")).pack(pady=(22, 4))
         tk.Label(card, text=label, bg=CARD, fg=TEXT, font=(FONT_NAME, 16, "bold")).pack()
@@ -2109,7 +2350,7 @@ class FracDecSelectPage(tk.Frame):
 
     def _make_card(self, master, symbol, label, command, subtitle=None, color=PRIMARY):
         card = tk.Frame(master, bg=CARD, width=170, height=150,
-                          highlightbackground="#dbe7ee", highlightthickness=1)
+                          highlightbackground=CARD_BORDER, highlightthickness=1)
         card.pack_propagate(False)
         tk.Label(card, text=symbol, bg=CARD, fg=(color if subtitle else PRIMARY),
                   font=(FONT_NAME, 26, "bold")).pack(pady=(16, 4))
@@ -2150,7 +2391,7 @@ class WordSelectPage(tk.Frame):
         row.pack()
         for i, spec in enumerate(self.WORD_OPS):
             card = tk.Frame(row, bg=CARD, width=170, height=170,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=0, column=i, padx=10)
             card.pack_propagate(False)
             tk.Label(card, text=spec["symbol"], bg=CARD, fg=PRIMARY, font=(FONT_NAME, 30, "bold")).pack(pady=(22, 4))
@@ -2165,7 +2406,7 @@ class WordSelectPage(tk.Frame):
             ("⏱", "시험", lambda: self.app.show_test_setup("word"), "제한시간 안에 풀어보기", ACCENT_DARK),
         ]):
             card = tk.Frame(row2, bg=CARD, width=170, height=170,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=0, column=i, padx=10)
             card.pack_propagate(False)
             tk.Label(card, text=symbol, bg=CARD, fg=color, font=(FONT_NAME, 26, "bold")).pack(pady=(22, 4))
@@ -2200,7 +2441,7 @@ class NumTheorySelectPage(tk.Frame):
         row.pack()
         for i, spec in enumerate(self.NUM_OPS):
             card = tk.Frame(row, bg=CARD, width=210, height=190,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=0, column=i, padx=12)
             card.pack_propagate(False)
             tk.Label(card, text=spec["symbol"], bg=CARD, fg=PRIMARY, font=(FONT_NAME, 22, "bold")).pack(pady=(24, 4))
@@ -2217,7 +2458,7 @@ class NumTheorySelectPage(tk.Frame):
             ("⏱", "시험", lambda: self.app.show_test_setup("numtheory"), "제한시간 안에 풀어보기", ACCENT_DARK),
         ]):
             card = tk.Frame(row2, bg=CARD, width=170, height=170,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=0, column=i, padx=10)
             card.pack_propagate(False)
             tk.Label(card, text=symbol, bg=CARD, fg=color, font=(FONT_NAME, 26, "bold")).pack(pady=(22, 4))
@@ -2254,7 +2495,7 @@ class MeasureSelectPage(tk.Frame):
         row.pack()
         for i, spec in enumerate(self.MEASURE_OPS):
             card = tk.Frame(row, bg=CARD, width=170, height=170,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=0, column=i, padx=10)
             card.pack_propagate(False)
             tk.Label(card, text=spec["symbol"], bg=CARD, fg=PRIMARY, font=(FONT_NAME, 26, "bold")).pack(pady=(22, 4))
@@ -2270,7 +2511,7 @@ class MeasureSelectPage(tk.Frame):
             ("⏱", "시험", lambda: self.app.show_test_setup("measure"), "제한시간 안에 풀어보기", ACCENT_DARK),
         ]):
             card = tk.Frame(row2, bg=CARD, width=170, height=170,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=0, column=i, padx=10)
             card.pack_propagate(False)
             tk.Label(card, text=symbol, bg=CARD, fg=color, font=(FONT_NAME, 26, "bold")).pack(pady=(22, 4))
@@ -2304,7 +2545,7 @@ class SettingsPage(tk.Frame):
         for d in range(10):
             btn = tk.Button(grid, text=str(d), font=(FONT_NAME, 20, "bold"),
                               width=3, height=1, relief="flat", bd=0, cursor="hand2",
-                              highlightbackground="#dbe7ee", highlightthickness=1,
+                              highlightbackground=CARD_BORDER, highlightthickness=1,
                               command=lambda dd=d: self.toggle(dd))
             btn.grid(row=d // 5, column=d % 5, padx=10, pady=10)
             self.buttons[d] = btn
@@ -2377,15 +2618,50 @@ class LevelSelectPage(tk.Frame):
         tk.Label(self, text=LEVEL_CAPTION_OVERRIDES.get(op, LEVEL_CAPTION_DEFAULT), bg=BG, fg=MUTED,
                   font=(FONT_NAME, 12)).pack(pady=(0, 26))
 
+        content = tk.Frame(self, bg=BG)
+        content.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+
         # 구구단(2~9단)처럼 레벨이 많은 연산도 창 밖으로 넘치지 않게 스크롤 처리한다.
-        scroll = ScrollableFrame(self, bg=BG, height=560)
-        scroll.pack(fill="both", expand=True, padx=60, pady=(0, 10))
+        scroll = ScrollableFrame(content, bg=BG, height=560)
+        scroll.pack(side="left", fill="both", expand=True, padx=(10, 10))
 
         for lv in OP_LEVELS_MAP[op]:
             self.make_row(scroll.inner, lv)
 
+        if op == "times_table":
+            self._build_times_table_reference(content)
+
+    def _build_times_table_reference(self, parent):
+        """1~9단 전체를 표로 모아 보여주는 참고용 공식집 -- 레벨을 고르기 전에
+        먼저 훑어보거나, 연습 중 잠깐 확인하고 싶을 때 쓸 수 있게 옆에 둔다.
+        옆 칸엔 작게 미리보기만 두고, 실제로 읽기 편한 크기는 클릭했을 때 뜨는
+        전체화면급 팝업(TimesTableDialog)에서 보여준다."""
+        panel = tk.Frame(parent, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1,
+                           cursor="hand2")
+        panel.pack(side="right", fill="y")
+        panel.bind("<Button-1>", lambda e: TimesTableDialog(self.app))
+
+        title = tk.Label(panel, text="구구단표", bg=CARD, fg=TEXT,
+                           font=(FONT_NAME, 14, "bold"), cursor="hand2")
+        title.pack(pady=(16, 2), padx=18)
+        title.bind("<Button-1>", lambda e: TimesTableDialog(self.app))
+        sub = tk.Label(panel, text="1~9단 모아보기", bg=CARD, fg=MUTED,
+                         font=(FONT_NAME, 10), cursor="hand2")
+        sub.pack(pady=(0, 10))
+        sub.bind("<Button-1>", lambda e: TimesTableDialog(self.app))
+
+        grid, cells = _build_multiplication_grid(
+            panel, cell_width=2, header_size=8, cell_size=8, pad=0, highlight_diagonal=False)
+        grid.pack(padx=8, pady=(0, 4))
+        for w in [grid] + cells:
+            w.bind("<Button-1>", lambda e: TimesTableDialog(self.app))
+            w.config(cursor="hand2")
+
+        RoundButton(panel, "크게 보기", lambda: TimesTableDialog(self.app), bg=PRIMARY,
+                     size=11, width=10, pady=7).pack(pady=(6, 16))
+
     def make_row(self, master, lv):
-        row = tk.Frame(master, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+        row = tk.Frame(master, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
         row.pack(fill="x", pady=6)
 
         badge = tk.Frame(row, bg=PRIMARY, width=64, height=64)
@@ -2403,6 +2679,77 @@ class LevelSelectPage(tk.Frame):
 
         RoundButton(row, "풀기", lambda l=lv["level"]: self.app.show_practice(self.op, l),
                      bg=ACCENT, fg=TEXT, size=12, width=6, pady=8).pack(side="right", padx=16)
+
+
+def _build_multiplication_grid(parent, cell_width, header_size, cell_size, pad, highlight_diagonal):
+    """Builds a 10x10(×header) 구구단표 grid inside `parent` and returns
+    (grid_frame, [all_cell_labels]) -- shared by the small LevelSelectPage
+    preview and the big TimesTableDialog so both stay visually consistent."""
+    grid = tk.Frame(parent, bg=CARD)
+    cells = []
+    header_bg, header_fg = PRIMARY, "white"
+    corner = tk.Label(grid, text="×", bg=header_bg, fg=header_fg,
+                        font=(FONT_NAME, header_size, "bold"), width=cell_width)
+    corner.grid(row=0, column=0, padx=pad, pady=pad, sticky="nsew")
+    cells.append(corner)
+    for c in range(1, 10):
+        lbl = tk.Label(grid, text=str(c), bg=header_bg, fg=header_fg,
+                         font=(FONT_NAME, header_size, "bold"), width=cell_width)
+        lbl.grid(row=0, column=c, padx=pad, pady=pad, sticky="nsew")
+        cells.append(lbl)
+    for r in range(1, 10):
+        row_hdr = tk.Label(grid, text=str(r), bg=header_bg, fg=header_fg,
+                             font=(FONT_NAME, header_size, "bold"), width=cell_width)
+        row_hdr.grid(row=r, column=0, padx=pad, pady=pad, sticky="nsew")
+        cells.append(row_hdr)
+        for c in range(1, 10):
+            is_diag = highlight_diagonal and r == c
+            cell_bg = ACCENT if is_diag else (CARD if r % 2 == 0 else BG)
+            cell = tk.Label(grid, text=str(r * c), bg=cell_bg, fg=TEXT,
+                              font=(FONT_NAME, cell_size, "bold" if is_diag else "normal"),
+                              width=cell_width)
+            cell.grid(row=r, column=c, padx=pad, pady=pad, sticky="nsew")
+            cells.append(cell)
+    return grid, cells
+
+
+class TimesTableDialog(tk.Toplevel):
+    """A big, easy-to-read 구구단표 popup -- 배경/제곱수 강조 등 작은 미리보기에는
+    넣기 힘든 꾸밈까지 넣어서 보기 편하게 만든 버전."""
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.app = app
+        self.title("구구단표")
+        self.configure(bg=CARD)
+        self.resizable(False, False)
+        self.transient(app)
+        self.protocol("WM_DELETE_WINDOW", self.close)
+
+        tk.Label(self, text="구구단표", bg=CARD, fg=TEXT,
+                  font=(FONT_NAME, 22, "bold")).pack(pady=(28, 4))
+        tk.Label(self, text="1단부터 9단까지 한눈에 보기 · 노란 칸은 제곱수예요", bg=CARD, fg=MUTED,
+                  font=(FONT_NAME, 12)).pack(pady=(0, 20))
+
+        grid, _cells = _build_multiplication_grid(
+            self, cell_width=3, header_size=14, cell_size=14, pad=2, highlight_diagonal=True)
+        grid.pack(padx=32, pady=(0, 26))
+
+        RoundButton(self, "닫기", self.close, bg=PRIMARY, size=13, width=12, pady=9).pack(pady=(0, 28))
+
+        self.update_idletasks()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        px = app.winfo_x() + (app.winfo_width() - w) // 2
+        py = app.winfo_y() + (app.winfo_height() - h) // 2
+        self.geometry(f"{w}x{h}+{px}+{py}")
+
+        self.grab_set()
+        self.focus_set()
+        self.bind("<Escape>", lambda e: self.close())
+
+    def close(self):
+        self.grab_release()
+        self.destroy()
 
 
 def _fmt_num(x):
@@ -2451,13 +2798,13 @@ class PracticePage(tk.Frame):
         self.score_label = tk.Label(top, text="", bg=BG, fg=MUTED, font=(FONT_NAME, 13))
         self.score_label.pack(side="right")
 
-        if op in FORMULA_TEXT:
+        if _formula_text_for(op, level):
             formula_row = tk.Frame(self, bg=BG)
             formula_row.pack(fill="x", padx=24, pady=(6, 0))
-            tk.Label(formula_row, text=f"공식: {FORMULA_TEXT[op]}", bg=BG, fg=PRIMARY_DARK,
+            tk.Label(formula_row, text=f"공식: {_formula_text_for(op, level)}", bg=BG, fg=PRIMARY_DARK,
                       font=(FONT_NAME, 11, "bold")).pack(side="left")
 
-        card = tk.Frame(self, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+        card = tk.Frame(self, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
         card.pack(padx=60, pady=(30, 20), fill="both", expand=True)
 
         if self.uses_clock_input:
@@ -2576,6 +2923,14 @@ class PracticePage(tk.Frame):
                 elif draw_kind == "bargraph":
                     cats, values, gstep = draw_data
                     draw_bar_graph(self.canvas, cats, values, gstep)
+                elif draw_kind == "polygon_angles":
+                    n_sides, labels = draw_data
+                    draw_polygon_angles(self.canvas, n_sides, labels)
+                elif draw_kind == "polygon_shape":
+                    draw_polygon_shape(self.canvas, draw_data)
+                elif draw_kind == "solid_shape":
+                    n_sides, is_pyramid = draw_data
+                    draw_solid_shape(self.canvas, n_sides, is_pyramid)
         elif self.mode == "clock":
             self.hour, self.minute = gen(self.level)
             draw_clock_diagram(self.canvas, self.hour, self.minute)
@@ -2604,9 +2959,12 @@ class PracticePage(tk.Frame):
                 b.destroy()
             self.choice_buttons = []
             for choice_text in self.choices:
+                # bg=BG (not CARD) so an unselected choice still reads as a
+                # distinct pill against the white card instead of nearly
+                # disappearing into it before it's picked.
                 b = RoundButton(self.choice_row, choice_text, lambda c=choice_text: self.on_choice_click(c),
-                                  bg=CARD, fg=TEXT, size=13, width=8, pady=10,
-                                  highlightbackground="#dbe7ee", highlightthickness=1)
+                                  bg=BG, fg=TEXT, size=13, width=8, pady=10,
+                                  highlightbackground=CARD_BORDER, highlightthickness=1)
                 b.pack(side="left", padx=6)
                 self.choice_buttons.append(b)
         else:
@@ -3061,7 +3419,7 @@ class TestSetupPage(tk.Frame):
         for i, (value, label) in enumerate(items):
             b = tk.Button(row, text=label, font=(FONT_NAME, 12, "bold"),
                             relief="flat", bd=0, cursor="hand2", padx=14, pady=7,
-                            highlightbackground="#dbe7ee", highlightthickness=1,
+                            highlightbackground=CARD_BORDER, highlightthickness=1,
                             command=lambda v=value: (on_pick(v), refresh()))
             b.grid(row=i // max_cols, column=i % max_cols, padx=5, pady=4)
             buttons[value] = b
@@ -3095,7 +3453,7 @@ class TestSetupPage(tk.Frame):
         for value in presets:
             b = tk.Button(row, text=f"{value}{unit}", font=(FONT_NAME, 12, "bold"),
                             relief="flat", bd=0, cursor="hand2", padx=14, pady=7,
-                            highlightbackground="#dbe7ee", highlightthickness=1,
+                            highlightbackground=CARD_BORDER, highlightthickness=1,
                             command=lambda v=value: pick_preset(v))
             b.pack(side="left", padx=5)
             buttons[value] = b
@@ -3179,7 +3537,7 @@ class TestPage(tk.Frame):
         self.progress_label = tk.Label(self, text="", bg=BG, fg=MUTED, font=(FONT_NAME, 12))
         self.progress_label.pack(pady=(8, 0))
 
-        card = tk.Frame(self, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+        card = tk.Frame(self, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
         card.pack(padx=60, pady=(16, 20), fill="both", expand=True)
 
         self.canvas, self.problem_label = build_question_display(card, self.mode)
@@ -3297,7 +3655,7 @@ class TestResultPage(tk.Frame):
             ("걸린 시간", f"{mm:02d}:{ss:02d}", TEXT),
         ]:
             box = tk.Frame(stat_row, bg=CARD, width=160, height=92,
-                             highlightbackground="#dbe7ee", highlightthickness=1)
+                             highlightbackground=CARD_BORDER, highlightthickness=1)
             box.pack_propagate(False)
             box.pack(side="left", padx=8)
             tk.Label(box, text=value, bg=CARD, fg=color, font=(FONT_NAME, 22, "bold")).pack(pady=(18, 0))
@@ -3307,7 +3665,7 @@ class TestResultPage(tk.Frame):
         scroll.pack(fill="both", expand=True, padx=40, pady=(18, 6))
         for i, g in enumerate(graded, start=1):
             row_bg = CARD if g["ok"] else "#fdeceb"
-            row = tk.Frame(scroll.inner, bg=row_bg, highlightbackground="#dbe7ee", highlightthickness=1)
+            row = tk.Frame(scroll.inner, bg=row_bg, highlightbackground=CARD_BORDER, highlightthickness=1)
             row.pack(fill="x", pady=3, padx=2)
             mark_color = GREEN_DARK if g["ok"] else RED
             tk.Label(row, text=("○" if g["ok"] else "✕"), bg=row_bg, fg=mark_color,
@@ -3470,18 +3828,11 @@ def draw_shape_diagram(canvas, shape_label, dims):
 
 def draw_clock_diagram(canvas, hour, minute):
     """Draws an analog clock face on a 300x300 canvas showing `hour`:`minute`.
-    Sized up from the original 200x200, with a thicker face/hands and an outer
-    ring of 5분 단위 minute numbers -- at the old size, Lv.3 (1분 단위) questions
-    were hard to read precisely off the tick marks alone."""
+    Sized up from the original 200x200, with a thicker face/hands, so Lv.3
+    (1분 단위) questions are easy to read precisely off the tick marks."""
     canvas.delete("all")
-    cx, cy, r = 150, 150, 115
+    cx, cy, r = 150, 150, 135
     canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline=TEXT, width=4, fill="white")
-
-    # 5분 단위 바깥쪽 눈금 숫자 -- 분침이 가리키는 분을 더 정확히 셀 수 있도록.
-    for m in range(0, 60, 5):
-        ang = math.radians(m * 6 - 90)
-        tx, ty = cx + (r + 20) * math.cos(ang), cy + (r + 20) * math.sin(ang)
-        canvas.create_text(tx, ty, text=str(m if m else 60), font=(FONT_NAME, 11), fill=PRIMARY)
 
     for h in range(1, 13):
         ang = math.radians(h * 30 - 90)
@@ -3559,6 +3910,61 @@ def draw_named_shape(canvas, shape_name):
     canvas.create_polygon(pts, outline=TEXT, fill="", width=3)
 
 
+def draw_polygon_shape(canvas, n_sides):
+    """Draws a regular n-gon (3~10변) on a 240x170 canvas for 초4 '다각형'
+    -- extends draw_named_shape's 3~6변 range up to 10변 (칠~십각형 have no
+    shape_name equivalent) so every 다각형 question shows the actual shape."""
+    canvas.delete("all")
+    cx, cy, r = 120, 88, 65
+    rot = -90 if n_sides != 4 else -45  # square sits flat on its base, not on a corner
+    pts = _regular_polygon_points(cx, cy, r, n_sides, rot=rot)
+    canvas.create_polygon(pts, outline=TEXT, fill="", width=3)
+
+
+def draw_polygon_angles(canvas, n_sides, labels):
+    """Draws a generic (not-to-scale, like a textbook figure) triangle or
+    quadrilateral with each vertex labeled by its angle value -- or '?' for
+    the one being solved for -- on a 240x170 canvas, for 초4 각도 문제."""
+    canvas.delete("all")
+    cx, cy, r = 120, 95, 62
+    if n_sides == 3:
+        pts_xy = [(cx, cy - r), (cx - r * 0.95, cy + r * 0.65), (cx + r * 0.95, cy + r * 0.65)]
+    else:
+        pts_xy = [(cx - r * 0.85, cy - r * 0.8), (cx + r * 0.85, cy - r * 0.6),
+                   (cx + r * 0.95, cy + r * 0.8), (cx - r * 0.95, cy + r * 0.7)]
+    flat = [c for xy in pts_xy for c in xy]
+    canvas.create_polygon(flat, outline=TEXT, fill="", width=2)
+    for (x, y), lbl in zip(pts_xy, labels):
+        lx, ly = x + (x - cx) * 0.3, y + (y - cy) * 0.3
+        if lbl == "?":
+            canvas.create_text(lx, ly, text="?", fill=ACCENT_DARK, font=(FONT_NAME, 15, "bold"))
+        else:
+            canvas.create_text(lx, ly, text=f"{lbl}°", fill=PRIMARY, font=(FONT_NAME, 13, "bold"))
+
+
+def draw_solid_shape(canvas, n_sides, is_pyramid):
+    """Draws a simple wireframe illustration of an n각기둥 (two n-gon faces
+    joined by vertical edges, same offset-depth trick as 직육면체 in
+    draw_shape_diagram) or an n각뿔 (one n-gon base + edges to an apex) on a
+    240x170 canvas, for 초6 각기둥과 각뿔 문제."""
+    canvas.delete("all")
+    cx, cy, r = 120, 108, 42
+    pts_flat = _regular_polygon_points(cx, cy, r, n_sides, rot=-90)
+    base_pts = [(pts_flat[i], pts_flat[i + 1]) for i in range(0, len(pts_flat), 2)]
+    canvas.create_polygon(pts_flat, outline=OUTLINE_NEUTRAL, fill="", width=2)
+    if is_pyramid:
+        apex = (cx, cy - 78)
+        for (x, y) in base_pts:
+            canvas.create_line(apex[0], apex[1], x, y, fill=TEXT, width=2)
+    else:
+        ox, oy = 0, -58
+        top_pts = [(x + ox, y + oy) for (x, y) in base_pts]
+        top_flat = [c for xy in top_pts for c in xy]
+        canvas.create_polygon(top_flat, outline=TEXT, fill="", width=2)
+        for (x, y), (tx, ty) in zip(base_pts, top_pts):
+            canvas.create_line(x, y, tx, ty, fill=TEXT, width=2)
+
+
 def draw_bar_graph(canvas, categories, values, step):
     """Draws a simple bar graph with gridlines (0/step/2·3·4×step) on a
     240x170 canvas -- `step` must be the same per-unit increment gen_graph_read
@@ -3618,7 +4024,7 @@ class ShapeHomePage(tk.Frame):
         ]
         for i, (symbol, label_text, desc, cmd, color) in enumerate(cards):
             card = tk.Frame(grid, bg=CARD, width=250, height=205,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=i // 2, column=i % 2, padx=12, pady=8)
             card.pack_propagate(False)
             tk.Label(card, text=symbol, bg=CARD, fg=color, font=(FONT_NAME, 26, "bold")).pack(pady=(16, 2))
@@ -3664,7 +4070,7 @@ class ShapeFormulaPage(tk.Frame):
             # 마름모 넓이 shows both diagonals; 원 둘레 shows 지름, 원 넓이
             # shows 반지름 -- never left showing only the other formula's value)
             for sd in defs:
-                row = tk.Frame(scroll.inner, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+                row = tk.Frame(scroll.inner, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
                 row.pack(fill="x", pady=5, padx=2)
 
                 canvas = tk.Canvas(row, width=240, height=170, bg=CARD, highlightthickness=0)
@@ -3707,7 +4113,7 @@ class ShapeSelectPage(tk.Frame):
             defs = SHAPES_BY_LABEL[shape_label]
             quantities = " · ".join(sd["quantity_label"] for sd in defs)
             card = tk.Frame(grid, bg=CARD, width=230, height=150,
-                              highlightbackground="#dbe7ee", highlightthickness=1)
+                              highlightbackground=CARD_BORDER, highlightthickness=1)
             card.grid(row=i // 3, column=i % 3, padx=10, pady=10)
             card.pack_propagate(False)
 
@@ -3744,7 +4150,7 @@ class ShapeQuantitySelectPage(tk.Frame):
         list_frame.pack(fill="both", expand=True, padx=80)
 
         for sd in SHAPES_BY_LABEL[shape_label]:
-            row = tk.Frame(list_frame, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+            row = tk.Frame(list_frame, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
             row.pack(fill="x", pady=6)
             text_col = tk.Frame(row, bg=CARD)
             text_col.pack(side="left", fill="both", expand=True, padx=18, pady=14)
@@ -3762,9 +4168,7 @@ class ShapePracticePage(tk.Frame):
         self.pack(fill="both", expand=True)
         self.app = app
         self.sd = SHAPE_DEFS_BY_KEY[key]
-        self.decimal = self.sd["decimal"]
         self.is_circle = self.sd["shape_label"] == "원"
-        self.use_pi = False
 
         self.correct_count = 0
         self.wrong_count = 0
@@ -3791,7 +4195,7 @@ class ShapePracticePage(tk.Frame):
         tk.Label(formula_row, text=f"공식: {self.sd['shape_label']} {self.sd['formula_text']}", bg=BG, fg=PRIMARY_DARK,
                   font=(FONT_NAME, 11, "bold")).pack(side="left")
 
-        card = tk.Frame(self, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+        card = tk.Frame(self, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
         card.pack(padx=60, pady=(24, 20), fill="both", expand=True)
 
         self.canvas = tk.Canvas(card, width=240, height=170, bg=CARD, highlightthickness=0)
@@ -3810,20 +4214,8 @@ class ShapePracticePage(tk.Frame):
                                 validate="key", validatecommand=vcmd)
         self.entry.pack(side="left", ipady=5)
 
-        if self.is_circle:
-            self.unit_buttons = {}
-            unit_row = tk.Frame(input_row, bg=CARD)
-            unit_row.pack(side="left", padx=(10, 0))
-            for is_pi, unit_text in [(False, self.sd["unit"]), (True, f"π {self.sd['unit']}")]:
-                b = tk.Button(unit_row, text=unit_text, font=(FONT_NAME, 12, "bold"),
-                                relief="flat", bd=0, cursor="hand2", padx=10, pady=6,
-                                highlightbackground="#dbe7ee", highlightthickness=1,
-                                command=lambda p=is_pi: self.set_pi_mode(p))
-                b.pack(side="left", padx=3)
-                self.unit_buttons[is_pi] = b
-            self._refresh_pi_toggle()
-        else:
-            tk.Label(input_row, text=self.sd["unit"], bg=CARD, fg=MUTED, font=(FONT_NAME, 14)).pack(side="left", padx=(8, 0))
+        unit_text = f"π {self.sd['unit']}" if self.is_circle else self.sd["unit"]
+        tk.Label(input_row, text=unit_text, bg=CARD, fg=MUTED, font=(FONT_NAME, 14)).pack(side="left", padx=(8, 0))
 
         self.feedback_label = tk.Label(card, text=" ", bg=CARD, font=(FONT_NAME, 15, "bold"))
         self.feedback_label.pack(pady=(14, 0))
@@ -3846,34 +4238,9 @@ class ShapePracticePage(tk.Frame):
         else:
             self.app.show_shape_select()
 
-    def set_pi_mode(self, use_pi):
-        if self.use_pi == use_pi:
-            return
-        self.use_pi = use_pi
-        self.answer_var.set("")
-        self._refresh_pi_toggle()
-
-    def _refresh_pi_toggle(self):
-        for is_pi, btn in self.unit_buttons.items():
-            if is_pi == self.use_pi:
-                btn.config(bg=PRIMARY, fg="white", activebackground=PRIMARY_DARK)
-            else:
-                btn.config(bg=CARD, fg=TEXT, activebackground="#eef3f6")
-
-    def _pi_target(self):
-        """Exact answer as a whole-number multiple of π (지름=원주의 계수,
-        반지름²=넓이의 계수) -- lets kids answer without needing 3.14 at all."""
-        if self.sd["key"] == "circle_circumference":
-            return self.dims["지름"]
-        return self.dims["반지름"] ** 2
-
     def _validate_num(self, proposed):
         if proposed == "":
             return True
-        if self.is_circle and self.use_pi:
-            return proposed.isdigit()
-        if self.decimal:
-            return proposed.count(".") <= 1 and proposed.replace(".", "").isdigit()
         return proposed.isdigit()
 
     def update_score(self):
@@ -3904,26 +4271,17 @@ class ShapePracticePage(tk.Frame):
 
     def check_answer(self):
         raw = self.answer_var.get().strip()
-        if raw in ("", "."):
+        if raw == "":
             return
-        pi_mode = self.is_circle and self.use_pi
         try:
-            if pi_mode:
-                user_val = int(raw)
-            elif self.decimal:
-                user_val = float(raw)
-            else:
-                user_val = int(raw)
+            user_val = int(raw)
         except ValueError:
             return
 
-        if pi_mode:
-            target = self._pi_target()
+        if self.is_circle:
+            target = _circle_pi_coefficient(self.sd["key"], self.dims)
             is_correct = user_val == target
             correct_text = f"{target}π"
-        elif self.decimal:
-            is_correct = abs(user_val - self.answer) < 0.005
-            correct_text = f"{self.answer:g}{self.sd['unit']}"
         else:
             is_correct = user_val == self.answer
             correct_text = f"{self.answer}{self.sd['unit']}"
@@ -3935,8 +4293,8 @@ class ShapePracticePage(tk.Frame):
         else:
             self.wrong_count += 1
             self.streak = 0
-            unit_text = f" {self.sd['unit']}" if pi_mode else ""
-            self.feedback_label.config(text=f"오답이에요. 정답은 {correct_text}{unit_text}예요", fg=RED)
+            unit_suffix = f" {self.sd['unit']}" if self.is_circle else ""
+            self.feedback_label.config(text=f"오답이에요. 정답은 {correct_text}{unit_suffix}예요", fg=RED)
 
         self.entry.config(state="disabled")
         self.main_btn.config(text="다음 문제 →", bg=PRIMARY, fg="white")
@@ -4004,7 +4362,7 @@ class ShapeTestSetupPage(tk.Frame):
         for i, (value, label) in enumerate(items):
             b = tk.Button(row, text=label, font=(FONT_NAME, 12, "bold"),
                             relief="flat", bd=0, cursor="hand2", padx=12, pady=6,
-                            highlightbackground="#dbe7ee", highlightthickness=1,
+                            highlightbackground=CARD_BORDER, highlightthickness=1,
                             command=lambda v=value: (on_pick(v), refresh()))
             b.grid(row=i // max_cols, column=i % max_cols, padx=4, pady=3)
             buttons[value] = b
@@ -4035,7 +4393,7 @@ class ShapeTestSetupPage(tk.Frame):
         for value in presets:
             b = tk.Button(row, text=f"{value}{unit}", font=(FONT_NAME, 12, "bold"),
                             relief="flat", bd=0, cursor="hand2", padx=14, pady=7,
-                            highlightbackground="#dbe7ee", highlightthickness=1,
+                            highlightbackground=CARD_BORDER, highlightthickness=1,
                             command=lambda v=value: pick_preset(v))
             b.pack(side="left", padx=5)
             buttons[value] = b
@@ -4081,7 +4439,7 @@ class ShapeTestPage(tk.Frame):
         self.pack(fill="both", expand=True)
         self.app = app
         self.sd = SHAPE_DEFS_BY_KEY[key]
-        self.decimal = self.sd["decimal"]
+        self.is_circle = self.sd["shape_label"] == "원"
         self.count = count
         self.minutes = minutes
 
@@ -4109,7 +4467,7 @@ class ShapeTestPage(tk.Frame):
         self.progress_label = tk.Label(self, text="", bg=BG, fg=MUTED, font=(FONT_NAME, 12))
         self.progress_label.pack(pady=(6, 0))
 
-        card = tk.Frame(self, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+        card = tk.Frame(self, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
         card.pack(padx=60, pady=(12, 20), fill="both", expand=True)
 
         self.canvas = tk.Canvas(card, width=220, height=155, bg=CARD, highlightthickness=0)
@@ -4127,7 +4485,8 @@ class ShapeTestPage(tk.Frame):
                                 width=8, justify="center", relief="solid", bd=2,
                                 validate="key", validatecommand=vcmd)
         self.entry.pack(side="left", ipady=5)
-        tk.Label(input_row, text=self.sd["unit"], bg=CARD, fg=MUTED, font=(FONT_NAME, 13)).pack(side="left", padx=(8, 0))
+        unit_text = f"π {self.sd['unit']}" if self.is_circle else self.sd["unit"]
+        tk.Label(input_row, text=unit_text, bg=CARD, fg=MUTED, font=(FONT_NAME, 13)).pack(side="left", padx=(8, 0))
 
         self.main_btn = RoundButton(card, "다음 →", self.submit_current, bg=ACCENT, fg=TEXT,
                                       size=14, width=12, pady=10)
@@ -4140,8 +4499,6 @@ class ShapeTestPage(tk.Frame):
     def _validate_num(self, proposed):
         if proposed == "":
             return True
-        if self.decimal:
-            return proposed.count(".") <= 1 and proposed.replace(".", "").isdigit()
         return proposed.isdigit()
 
     def show_question(self):
@@ -4163,7 +4520,7 @@ class ShapeTestPage(tk.Frame):
         if raw == "":
             return None
         try:
-            return float(raw) if self.decimal else int(raw)
+            return int(raw)
         except ValueError:
             return None
 
@@ -4213,24 +4570,21 @@ class ShapeTestResultPage(tk.Frame):
         self.app = app
         self.key = key
         sd = SHAPE_DEFS_BY_KEY[key]
-        decimal = sd["decimal"]
+        is_circle = sd["shape_label"] == "원"
 
         graded = []
         correct_n = 0
         for q, ua in zip(questions, user_answers):
-            ans = q["answer"]
+            ans = _circle_pi_coefficient(key, q["dims"]) if is_circle else q["answer"]
             if ua is None:
                 ok, ua_text = False, "안 씀"
-            elif decimal:
-                ok = abs(ua - ans) < 0.005
-                ua_text = _fmt_num(ua)
             else:
                 ok = ua == ans
-                ua_text = str(ua)
+                ua_text = f"{ua}π" if is_circle else str(ua)
             if ok:
                 correct_n += 1
             dims_phrase = ", ".join(f"{k} {v}cm" for k, v in q["dims"].items())
-            ans_text = f"{_fmt_num(ans)}{sd['unit']}"
+            ans_text = f"{ans}π {sd['unit']}" if is_circle else f"{_fmt_num(ans)}{sd['unit']}"
             graded.append({"prob": f"{dims_phrase} → {sd['quantity_label']}",
                              "user": ua_text, "answer": ans_text, "ok": ok})
 
@@ -4261,7 +4615,7 @@ class ShapeTestResultPage(tk.Frame):
             ("걸린 시간", f"{mm:02d}:{ss:02d}", TEXT),
         ]:
             box = tk.Frame(stat_row, bg=CARD, width=160, height=92,
-                             highlightbackground="#dbe7ee", highlightthickness=1)
+                             highlightbackground=CARD_BORDER, highlightthickness=1)
             box.pack_propagate(False)
             box.pack(side="left", padx=8)
             tk.Label(box, text=value, bg=CARD, fg=color, font=(FONT_NAME, 22, "bold")).pack(pady=(18, 0))
@@ -4271,7 +4625,7 @@ class ShapeTestResultPage(tk.Frame):
         scroll.pack(fill="both", expand=True, padx=40, pady=(18, 6))
         for i, g in enumerate(graded, start=1):
             row_bg = CARD if g["ok"] else "#fdeceb"
-            row = tk.Frame(scroll.inner, bg=row_bg, highlightbackground="#dbe7ee", highlightthickness=1)
+            row = tk.Frame(scroll.inner, bg=row_bg, highlightbackground=CARD_BORDER, highlightthickness=1)
             row.pack(fill="x", pady=3, padx=2)
             mark_color = GREEN_DARK if g["ok"] else RED
             tk.Label(row, text=("○" if g["ok"] else "✕"), bg=row_bg, fg=mark_color,
@@ -4318,7 +4672,7 @@ class HistoryPage(tk.Frame):
             ("평균 정답률", f"{avg_acc}%", GREEN_DARK),
         ]:
             box = tk.Frame(stat_row, bg=CARD, width=180, height=90,
-                             highlightbackground="#dbe7ee", highlightthickness=1)
+                             highlightbackground=CARD_BORDER, highlightthickness=1)
             box.pack_propagate(False)
             box.pack(side="left", padx=10)
             tk.Label(box, text=value, bg=CARD, fg=color, font=(FONT_NAME, 22, "bold")).pack(pady=(18, 0))
@@ -4328,7 +4682,7 @@ class HistoryPage(tk.Frame):
             scroll = ScrollableFrame(self, bg=BG, height=340)
             scroll.pack(fill="both", expand=True, padx=40, pady=(18, 10))
             for e in reversed(entries):
-                row = tk.Frame(scroll.inner, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+                row = tk.Frame(scroll.inner, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
                 row.pack(fill="x", pady=4, padx=2)
                 tk.Label(row, text=e["ts"], bg=CARD, fg=MUTED, font=(FONT_NAME, 11),
                           width=13, anchor="w").pack(side="left", padx=(14, 4), pady=10)
@@ -4370,8 +4724,12 @@ class VersionHistoryPage(tk.Frame):
         scroll = ScrollableFrame(self, bg=BG, height=460)
         scroll.pack(fill="both", expand=True, padx=50, pady=(0, 16))
 
+        if not VERSION_HISTORY:
+            tk.Label(scroll.inner, text="아직 업데이트 내역이 없어요", bg=BG, fg=MUTED,
+                      font=(FONT_NAME, 13)).pack(pady=40)
+
         for entry in VERSION_HISTORY:
-            row = tk.Frame(scroll.inner, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+            row = tk.Frame(scroll.inner, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
             row.pack(fill="x", pady=6, padx=2)
 
             head = tk.Frame(row, bg=CARD)
@@ -4412,7 +4770,7 @@ class WrongAnswerReviewPage(tk.Frame):
         self.progress_label = tk.Label(top, text="", bg=BG, fg=MUTED, font=(FONT_NAME, 13))
         self.progress_label.pack(side="right")
 
-        card = tk.Frame(self, bg=CARD, highlightbackground="#dbe7ee", highlightthickness=1)
+        card = tk.Frame(self, bg=CARD, highlightbackground=CARD_BORDER, highlightthickness=1)
         card.pack(padx=60, pady=(30, 20), fill="both", expand=True)
 
         self.canvas, self.problem_label = build_question_display(card, self.mode)
