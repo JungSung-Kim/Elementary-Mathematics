@@ -1212,7 +1212,14 @@ def download_and_restart_with_update(download_url):
     """Downloads the new exe, then hands off to a small detached batch
     script that waits for this process to exit, overwrites the current exe
     with the new one, relaunches it, and deletes itself -- Windows won't
-    let a running exe overwrite its own file directly."""
+    let a running exe overwrite its own file directly.
+
+    The copy is retried in a loop (up to ~20s) instead of a single fixed
+    wait -- a one-shot "sleep 2s then copy" was found to fail in practice
+    when this process took a little longer than 2s to fully release the
+    exe's file lock on exit, leaving the batch stuck with nothing to do
+    (copy fails, start relaunches the OLD exe, the .bat never reaches its
+    own `del` step so it's left behind in %TEMP%)."""
     exe_path = sys.executable
     tmp_new = os.path.join(tempfile.gettempdir(), "초등수학문제집_new.exe")
 
@@ -1224,8 +1231,15 @@ def download_and_restart_with_update(download_url):
     bat_content = (
         "@echo off\r\n"
         "chcp 65001 >nul\r\n"
-        "timeout /t 2 /nobreak >nul\r\n"
-        f'copy /y "{tmp_new}" "{exe_path}"\r\n'
+        "set count=0\r\n"
+        ":retry\r\n"
+        f'copy /y "{tmp_new}" "{exe_path}" >nul 2>nul\r\n'
+        "if not errorlevel 1 goto done\r\n"
+        "set /a count+=1\r\n"
+        "if %count% GEQ 20 goto done\r\n"
+        "timeout /t 1 /nobreak >nul\r\n"
+        "goto retry\r\n"
+        ":done\r\n"
         f'start "" "{exe_path}"\r\n'
         'del "%~f0"\r\n'
     )
@@ -1234,7 +1248,7 @@ def download_and_restart_with_update(download_url):
 
     subprocess.Popen(
         ["cmd", "/c", bat_path],
-        creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
+        creationflags=subprocess.CREATE_NO_WINDOW,
         close_fds=True,
     )
 
