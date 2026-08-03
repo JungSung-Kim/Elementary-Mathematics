@@ -2835,8 +2835,8 @@ def build_question_display(parent, mode):
     the mode. Returns (canvas_or_None, label)."""
     canvas = None
     if mode == "clock":
-        canvas = tk.Canvas(parent, width=190, height=190, bg=CARD, highlightthickness=0)
-        canvas.pack(pady=(10, 4))
+        canvas = tk.Canvas(parent, width=300, height=300, bg=CARD, highlightthickness=0)
+        canvas.pack(pady=(6, 4))
     size = {"text_int": 16, "text_decimal": 16, "clock": 15, "frac_pair": 34}.get(mode, 38)
     weight = "normal" if mode in ("text_int", "text_decimal") else "bold"
     label = tk.Label(parent, text="", bg=CARD, fg=TEXT, wraplength=560, justify="center",
