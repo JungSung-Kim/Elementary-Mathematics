@@ -37,10 +37,17 @@ OUTLINE_NEUTRAL = "#aeb9be"  # 치수로 표시되지 않는 나머지 변(그�
 
 FONT_NAME = "맑은 고딕"
 
-APP_VERSION = "v1.1"
+APP_VERSION = "v1.2"
 
 # 새 버전을 낼 때는 맨 위에 새 항목을 추가한다 (최신순으로 보여줌).
 VERSION_HISTORY = [
+    {
+        "version": "v1.2",
+        "date": "2026-08-03",
+        "notes": [
+            "자동 업데이트 안정성 개선 (파일 교체 재시도 로직 추가)",
+        ],
+    },
     {
         "version": "v1.1",
         "date": "2026-08-03",
